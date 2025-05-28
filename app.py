@@ -3,45 +3,27 @@ import requests
 from PIL import Image
 import io
 import base64
-import matplotlib.pyplot as plt
 
-# Streamlit UI configuration
-st.set_page_config(page_title="Leaf Disease Classifier", layout="centered")
-st.title("🌿 Leaf Disease Detection")
-st.markdown("📱 You can **capture a photo** using your phone or upload an existing leaf image for disease detection.")
+# Cấu hình giao diện Streamlit
+st.set_page_config(page_title="Leaf Disease Detector", layout="centered")
+st.title("🌿 Leaf Disease Detection App")
+st.markdown("📱 **Bạn có thể chụp ảnh lá cây trực tiếp bằng điện thoại** hoặc chọn ảnh có sẵn để kiểm tra bệnh.")
 
-# Function to display image with fake bounding box and label
-def show_prediction(image, label, confidence):
-    fig, ax = plt.subplots()
-    ax.imshow(image)
-
-    # Draw a red rectangle around the full image to mimic a bounding box
-    width, height = image.size
-    ax.add_patch(plt.Rectangle((0, 0), width, height, edgecolor='red', facecolor='none', linewidth=3))
-
-    # Add label and confidence at the top-left
-    ax.text(5, 5, f"{label} {confidence:.0f}%", fontsize=12,
-            bbox=dict(facecolor='red', alpha=0.8), color='white')
-
-    ax.axis('off')
-    st.pyplot(fig)
-
-# Upload image
-uploaded_file = st.file_uploader("📤 Upload a leaf image", type=["jpg", "jpeg", "png"])
+# Upload ảnh
+uploaded_file = st.file_uploader("📤 Upload leaf image", type=["jpg", "jpeg", "png"])
 if uploaded_file:
     image = Image.open(uploaded_file)
-    #st.image(image, caption="🖼️ Uploaded Image", use_column_width=True)
-    st.image(image, caption="🖼️ Uploaded Image", use_container_width=True)
+    st.image(image, caption="🖼️ Uploaded Leaf Image", use_container_width=True)
 
-    if st.button("🔍 Predict Disease"):
-        # Convert image to base64
+    if st.button("🔍 Dự đoán bệnh"):
+        # Chuyển ảnh sang dạng base64
         buffered = io.BytesIO()
         image.save(buffered, format="JPEG")
         img_str = base64.b64encode(buffered.getvalue()).decode()
 
-        # Roboflow API details
+        # Gửi ảnh đến Roboflow API
         api_url = "https://serverless.roboflow.com/infer/workflows/plant-ai-h5szi/custom-workflow-3"
-        api_key = "gHkcX1drhNq5c51rwOBA"  # ← Replace this with your actual API key
+        api_key = "gHkcX1drhNq5c51rwOBA"  # 🔐 THAY bằng API Key của bạn
 
         payload = {
             "api_key": api_key,
@@ -53,19 +35,24 @@ if uploaded_file:
             }
         }
 
-        # Send request
+        # Gửi request
         response = requests.post(api_url, json=payload)
+        print(response.json())
+        result = response.json()
 
-        if response.status_code == 200:
+        try:
             result = response.json()
-            predictions = result.get("predictions", [])
-            if predictions:
-                pred = predictions[0]
-                label = pred["class"]
-                confidence = pred["confidence"] * 100
-                show_prediction(image, label, confidence)
+            prediction_data = result['outputs'][0]['predictions']
+            prediction_list = prediction_data['predictions']  # danh sách các dự đoán
+
+            if prediction_list and len(prediction_list) > 0:
+                top_class = prediction_data['top']
+                confidence = prediction_data['confidence']
+                st.success(f"🩺 Bệnh được phát hiện: **{top_class}** (Độ tin cậy: **{confidence*100:.2f}%**)")
             else:
-                st.warning("⚠️ No prediction returned.")
-        else:
-            st.error(f"❌ API Error: {response.status_code} - {response.text}")
+                st.warning("👨‍⚕️ Không phát hiện được bệnh nào. Vui lòng thử lại với ảnh rõ nét hơn.")
+
+        except Exception as e:
+            st.error("Lỗi khi phân tích kết quả phản hồi từ API.")
+            st.text(f"Chi tiết lỗi: {e}")
 
