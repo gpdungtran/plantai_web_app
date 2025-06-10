@@ -1,30 +1,39 @@
-# feedback.py - lưu đánh giá người dùng
-import os
 import json
+import os
 from datetime import datetime
 
-def save_feedback(username, image_bytes, prediction, is_correct, location):
-    """
-    print("save_feedback")    
-    folder = "data/records"
-    os.makedirs(folder, exist_ok=True)
-
+def save_feedback(username, image_base64, predictions, feedback_status):
+    # Lấy thời gian hiện tại
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    img_filename = f"{folder}/{username}_{timestamp}.jpg"
-    json_filename = f"{folder}/{username}_{timestamp}.json"
+    
+    # Địa điểm: Dùng một giá trị cố định, trong ứng dụng thực tế có thể cần API định vị
+    location = "Web App (Không xác định vị trí cụ thể)"
 
-    with open(img_filename, "wb") as f:
-        f.write(image_bytes)
+    # Tạo thư mục 'data/records' nếu chưa tồn tại
+    output_dir = "data/records"
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
-    record = {
-        "user": username,
-        "time": timestamp,
-        "prediction": prediction,
-        "correct": is_correct,
+    # Tên tệp phản hồi
+    filename = os.path.join(output_dir, f"{username}_{timestamp}.json")
+
+    # Dữ liệu phản hồi
+    feedback_data = {
+        "username": username,
+        "timestamp": timestamp,
         "location": location,
-        "image_path": img_filename
+        "image_base64_preview": image_base64[:100] + "...", # Lưu một phần nhỏ để xem trước
+        "full_image_base64": image_base64, # Lưu toàn bộ base64 ảnh
+        "predictions": predictions, # Lưu toàn bộ kết quả dự đoán
+        "feedback_status": "Correct" if feedback_status else "Incorrect"
     }
-    with open(json_filename, "w") as f:
-        json.dump(record, f, indent=2)
 
-    """
+    try:
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(feedback_data, f, ensure_ascii=False, indent=4)
+        print(f"Phản hồi đã được lưu vào: {filename}")
+        return True
+    except Exception as e:
+        print(f"Lỗi khi lưu phản hồi: {e}")
+        return False
+
